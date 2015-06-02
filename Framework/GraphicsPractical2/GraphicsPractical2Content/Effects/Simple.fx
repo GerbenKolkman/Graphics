@@ -1,15 +1,15 @@
-//------------------------------------------- Defines -------------------------------------------
+//------------------------------------------- Defines -------------------------------------------//
 
 #define Pi 3.14159265
 
-//------------------------------------- Top Level Variables -------------------------------------
+//------------------------------------- Top Level Variables -------------------------------------//
 
 // Top level variables can and have to be set at runtime
 
 // Matrices for 3D perspective projection 
 float4x4 View, Projection, World;
 
-//---------------------------------- Input / Output structures ----------------------------------
+//---------------------------------- Input / Output structures ----------------------------------//
 
 // Each member of the struct has to be given a "semantic", to indicate what kind of data should go in
 // here and how it should be treated. Read more about the POSITION0 and the many other semantics in 
@@ -17,6 +17,9 @@ float4x4 View, Projection, World;
 struct VertexShaderInput
 {
 	float4 Position3D : POSITION0;
+	float4 color : COLOR0;
+	float3 normal : NORMAL0;
+	float2 TextureCoordinate : TEXCOORD0;
 };
 
 // The output of the vertex shader. After being passed through the interpolator/rasterizer it is also 
@@ -30,23 +33,45 @@ struct VertexShaderInput
 struct VertexShaderOutput
 {
 	float4 Position2D : POSITION0;
+	float4 Position3D : TEXCOORD0;
+	float3 normal : TEXCOORD1;
+	float2 TextureCoordinate : TEXCOORD2; 
 };
 
-//------------------------------------------ Functions ------------------------------------------
+//------------------------------------------ Functions ------------------------------------------//
 
-// Implement the Coloring using normals assignment here
-float4 NormalColor(/* parameter(s) */)
+// Coloring using normals is implemented here
+// It takes the normal from the vertexshader output 
+float4 NormalColor(float3 normal)
 {
-	return float4(1, 0, 0, 1);
+	//return float4(0, 0, 0, 1);
+	float4 color = float4(1,0,0,1);
+	color.rgb = normal;
+	return color;
 }
 
 // Implement the Procedural texturing assignment here
-float4 ProceduralColor(/* parameter(s) */)
-{
-	return float4(0, 0, 0, 1);
+float3 ProceduralColor(VertexShaderOutput input)
+{	
+	if (sin(Pi*input.Position3D.x/0.20) > 0)
+	{
+		if (sin(Pi*input.Position3D.y/0.20) > 0)
+			return input.normal;
+		else
+			return -input.normal;
+	}
+	else
+	{
+		if (sin(Pi*input.Position3D.y/0.20) > 0)
+			return -input.normal;
+		else
+			return input.normal;
+	}
 }
 
-//---------------------------------------- Technique: Simple ----------------------------------------
+/// z fighting
+
+//---------------------------------------- Technique: Simple ----------------------------------------//
 
 VertexShaderOutput SimpleVertexShader(VertexShaderInput input)
 {
@@ -56,15 +81,19 @@ VertexShaderOutput SimpleVertexShader(VertexShaderInput input)
 	// Do the matrix multiplications for perspective projection and the world transform
 	float4 worldPosition = mul(input.Position3D, World);
     float4 viewPosition  = mul(worldPosition, View);
+
 	output.Position2D    = mul(viewPosition, Projection);
+	output.Position3D    = input.Position3D;
+	output.normal = input.normal;
+	output.TextureCoordinate = input.TextureCoordinate;
 
 	return output;
 }
 
 float4 SimplePixelShader(VertexShaderOutput input) : COLOR0
 {
-	float4 color = NormalColor();
-
+	input.normal = ProceduralColor(input);
+	float4 color = NormalColor(input.normal);
 	return color;
 }
 
